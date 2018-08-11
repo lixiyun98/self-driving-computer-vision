@@ -1,0 +1,264 @@
+# -*- coding: utf-8 -*-
+"""
+Spyder Editor
+
+This is a temporary script file.
+"""
+import keras
+from keras import optimizers
+from keras.datasets import cifar10
+from keras.models import Sequential
+from keras.layers import Conv2D, Dense, Flatten, MaxPooling2D
+from keras.callbacks import LearningRateScheduler, TensorBoard
+import numpy as np
+from keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+import os
+import tensorflow as tf
+# Load pickled data
+import matplotlib.pyplot as plt
+import pickle
+from scipy import ndimage
+from skimage.transform import resize
+from skimage.data import imread
+from skimage import color
+# TODO: Fill this in based on where you saved the training and testing data
+
+training_file = 'I:\\to_lixiyun\\traffic-signs-data\\train.p'
+
+testing_file = 'I:\\to_lixiyun\\traffic-signs-data\\test.p'
+
+with open(training_file, mode='rb') as f:
+    train = pickle.load(f)
+
+with open(testing_file, mode='rb') as f:
+    test = pickle.load(f)
+    
+X_train, y_train = train['features'], train['labels']
+
+X_test, y_test = test['features'], test['labels']
+from sklearn.model_selection import train_test_split
+
+X_train,X_valid,y_train,y_valid=train_test_split(X_train,y_train,test_size=0.2,random_state=0)
+
+print("Updata Image size :{}".format(X_train[0].shape))
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+index = random.randint(0, len(X_train))
+image = X_train[index].squeeze()
+label_dict={}
+with open('F:\\CarND-Traffic-Sign-Classifier-Project-master\\CarND-Traffic-Sign-Classifier-Project-master\\signnames.csv') as f:
+    lines=f.readlines()
+    for line in lines[1:]:
+        tmp=line.strip('\n')
+        tmp=tmp.split(',')
+        label_dict[tmp[0]]=tmp[1]
+    f.close()
+plt.figure(figsize=(8,8))
+plt.imshow(image)
+plt.title(label_dict[str(int(y_train[index]))])
+
+X_train=X_train.astype('float32')
+X_valid=X_valid.astype('float32')
+X_test=X_test.astype('float32')
+from sklearn.utils import shuffle
+
+X_train, y_train = shuffle(X_train, y_train)
+for i in range(3):
+    X_train[:,:,:,i]=(X_train[:,:,:,i]-np.mean(X_train[:,:,:,i]))/np.std(X_train[:,:,:,i])
+    X_valid[:,:,:,i]=(X_valid[:,:,:,i]-np.mean(X_valid[:,:,:,i]))/np.std(X_valid[:,:,:,i])
+    X_test[:,:,:,i]=(X_test[:,:,:,i]-np.mean(X_test[:,:,:,i]))/np.std(X_test[:,:,:,i])
+import tensorflow as tf
+#EPOCHS = 10
+#BATCH_SIZE = 128
+from tensorflow.contrib.layers import flatten
+from keras.regularizers import l2
+batch_size    = 128
+epochs        = 180
+iterations    = 391
+num_classes   = 43
+log_filepath  = 'the_trafficsign_lenet'
+weight_decay  = 0.0001
+def build_model():
+    model = Sequential()
+    model.add(Conv2D(6, (5, 5), padding='valid', activation = 'relu', kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay),input_shape=(32,32,3)))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+    model.add(Conv2D(16, (5, 5), padding='valid', activation = 'relu', kernel_initializer='he_normal',kernel_regularizer=l2(weight_decay)))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+    model.add(Flatten())
+    model.add(Dense(120, activation = 'relu', kernel_initializer='he_normal',kernel_regularizer=l2(weight_decay),))
+    model.add(Dense(84, activation = 'relu', kernel_initializer='he_normal',kernel_regularizer=l2(weight_decay),))
+    model.add(Dense(43, activation = 'softmax', kernel_initializer='he_normal',kernel_regularizer=l2(weight_decay),))
+    sgd = optimizers.SGD(lr=.1, momentum=0.9, nesterov=True)
+    model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+    return model
+
+def scheduler(epoch):
+    learning_rate_init = 0.02
+    if epoch >= 80:
+        learning_rate_init = 0.01
+    if epoch >= 150:
+        learning_rate_init = 0.004
+    return learning_rate_init
+
+if __name__ == '__main__':
+
+    # load data
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    y_train = keras.utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.to_categorical(y_test, num_classes)
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+    x_train[:,:,:,0] = (x_train[:,:,:,0] - np.mean(x_train[:,:,:,0])) / np.std(x_train[:,:,:,0])
+    x_train[:,:,:,1] = (x_train[:,:,:,1] - np.mean(x_train[:,:,:,1])) / np.std(x_train[:,:,:,1])
+    x_train[:,:,:,2] = (x_train[:,:,:,2] - np.mean(x_train[:,:,:,2])) / np.std(x_train[:,:,:,2])
+
+    # build network
+    model = build_model()
+    print(model.summary())
+    # set callback
+    tb_cb = TensorBoard(log_dir=log_filepath, histogram_freq=0)
+    change_lr = LearningRateScheduler(scheduler)
+    cbks = [change_lr,tb_cb]
+    print('Using real-time data augmentation.')
+#    datagen = ImageDataGenerator(horizontal_flip=True,
+#            width_shift_range=0.125,height_shift_range=0.125,fill_mode='constant',cval=0.)
+#    datagen.fit(x_train)
+## start traing 
+#    model.fit_generator(datagen.flow(x_train, y_train,batch_size=batch_size),
+#                 steps_per_epoch=iterations,
+#                 epochs=epochs,
+#                 callbacks=cbks,
+#                 validation_data=(x_test, y_test))
+#    # start traing 
+    model.fit(x_train, y_train,batch_size=batch_size,epochs=epochs,callbacks=cbks,
+                  validation_data=(x_test, y_test), shuffle=True)
+    # save model
+    model.save('lenet.h5')
+#def LeNet(x):    
+#    # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
+#    mu = 0
+#    sigma = 0.1
+#    
+#    # SOLUTION: Layer 1: Convolutional. Input = 32x32x1. Output = 28x28x6.
+#    conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 3, 6), mean = mu, stddev = sigma))
+#    conv1_b = tf.Variable(tf.zeros(6))
+#    conv1   = tf.nn.conv2d(x, conv1_W, strides=[1, 1, 1, 1], padding='VALID') + conv1_b
+#
+#    # SOLUTION: Activation.
+#    conv1 = tf.nn.relu(conv1)
+#
+#    # SOLUTION: Pooling. Input = 28x28x6. Output = 14x14x6.
+#    conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+#
+#    # SOLUTION: Layer 2: Convolutional. Output = 10x10x16.
+#    conv2_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 6, 16), mean = mu, stddev = sigma))
+#    conv2_b = tf.Variable(tf.zeros(16))
+#    conv2   = tf.nn.conv2d(conv1, conv2_W, strides=[1, 1, 1, 1], padding='VALID') + conv2_b
+#    
+#    # SOLUTION: Activation.
+#    conv2 = tf.nn.relu(conv2)
+#
+#    # SOLUTION: Pooling. Input = 10x10x16. Output = 5x5x16.
+#    conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+#
+#    # SOLUTION: Flatten. Input = 5x5x16. Output = 400.
+#    fc0   = flatten(conv2)
+#    
+#    # SOLUTION: Layer 3: Fully Connected. Input = 400. Output = 120.
+#    fc1_W = tf.Variable(tf.truncated_normal(shape=(400, 120), mean = mu, stddev = sigma))
+#    fc1_b = tf.Variable(tf.zeros(120))
+#    fc1   = tf.matmul(fc0, fc1_W) + fc1_b
+#    
+#    # SOLUTION: Activation.
+#    fc1    = tf.nn.relu(fc1)
+#
+#    # SOLUTION: Layer 4: Fully Connected. Input = 120. Output = 84.
+#    fc2_W  = tf.Variable(tf.truncated_normal(shape=(120, 84), mean = mu, stddev = sigma))
+#    fc2_b  = tf.Variable(tf.zeros(84))
+#    fc2    = tf.matmul(fc1, fc2_W) + fc2_b
+#    
+#    # SOLUTION: Activation.
+#    fc2    = tf.nn.relu(fc2)
+#
+#    # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = 10.
+#    fc3_W  = tf.Variable(tf.truncated_normal(shape=(84, 43), mean = mu, stddev = sigma))
+#    fc3_b  = tf.Variable(tf.zeros(43))
+#    logits = tf.matmul(fc2, fc3_W) + fc3_b
+#    
+#    return logits
+#x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+#y = tf.placeholder(tf.int32, (None))
+#one_hot_y = tf.one_hot(y, 43)
+#rate = 0.001
+##
+#logits = LeNet(x)
+#cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits=logits)
+#loss_operation = tf.reduce_mean(cross_entropy)
+#optimizer = tf.train.AdamOptimizer(learning_rate = rate)
+#training_operation = optimizer.minimize(loss_operation)
+#correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot_y, 1))
+#accuracy_operation = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+#saver = tf.train.Saver()
+#
+def evaluate(X_data, y_data):
+    num_examples = len(X_data)
+    total_accuracy = 0
+    sess = tf.get_default_session()
+    for offset in range(0, num_examples, BATCH_SIZE):
+        batch_x, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
+        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
+        total_accuracy += (accuracy * len(batch_x))
+    return total_accuracy / num_examples
+#with tf.Session() as sess:
+#    sess.run(tf.global_variables_initializer())
+#    num_examples = len(X_train)
+#    
+#    print("Training...")
+#    print()
+#    for i in range(EPOCHS):
+#        X_train, y_train = shuffle(X_train, y_train)
+#        for offset in range(0, num_examples, BATCH_SIZE):
+#            end = offset + BATCH_SIZE
+#            batch_x, batch_y = X_train[offset:end], y_train[offset:end]
+#            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y})
+#            
+#        validation_accuracy = evaluate(X_valid, y_valid)
+#        print("EPOCH {} ...".format(i+1))
+#        print("Validation Accuracy = {:.3f}".format(validation_accuracy))
+#        print()
+#        
+#    saver.save(sess, './/lenet//lenet.ckpt')
+#    print("Model saved")
+#    save_model=tf.train.latest_checkpoint('.//lenet')
+#    saver.restore(sess,save_model)
+#path_list = os.listdir('F:\\CarND-Traffic-Sign-Classifier-Project-master\\AbangLZU-CarND-Traffic-Sign-Classifier-Project-529c231\\web_imgs')
+#imgs_list = []
+#imgs_arr = np.zeros([10, 32, 32])
+#label_arr = np.zeros([10])
+#for item in path_list:
+#    imgs_list.append(imread(os.path.join('F:\\CarND-Traffic-Sign-Classifier-Project-master\\AbangLZU-CarND-Traffic-Sign-Classifier-Project-529c231\\web_imgs', item)))
+#for i, item in enumerate(imgs_list):
+#
+#    imgs_arr[i, :, :] = resize(item, (32, 32，3))
+#for i, item in enumerate(path_list):
+#    item = item.split('.')[0]
+#    item = int(item)
+#    label_arr[i] = item
+#print(evaluate(imgs_arr,label_arr))
+#def subplot(img_list,label_list,gray=True):
+#    plt.figure(figsize=(12,14))
+#    for i in range(len(img_list)):
+#        if gray==True:
+#            plt.subplot(4,4,i+1)
+#            plt.imshow(img_list[i],cmap='gray')
+#            plt.title(label_dict[str(label_list[i])])
+#        else:
+#            plt.imshow(img_list[i], cmap='gray')
+#            plt.title(label_dict[str(label_list[i])])
+#    plt.show()
+##subplot(X_test[:16], y_test[:16], gray=True)
+#import matplotlib.pyplot as plt

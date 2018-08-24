@@ -1,0 +1,45 @@
+import matplotlib.pyplot as plt
+from PIL import Image
+from gen_captcha import gen_captcha_text_and_image
+from gen_captcha import number
+from gen_captcha import alphabet
+from gen_captcha import ALPHABET
+import numpy as np
+import tensorflow as tf
+    text, image = gen_captcha_text_and_image()
+    print("验证码图像channel:", image.shape)
+    # 图像大小
+    IMAGE_HEIGHT = 60
+    IMAGE_WIDTH = 160
+    MAX_CAPTCHA = len(text)
+    print("验证码文本最长字符数", MAX_CAPTCHA)    
+    def convert2gray(img):
+        if len(img.shape) > 2:
+            gray = np.mean(img, -1)
+            return gray
+        else:
+            return img
+       char_set = number + alphabet + ALPHABET + ['_']  # 如果验证码长度小于4, '_'用来补齐
+    CHAR_SET_LEN = len(char_set)
+    def text2vec(text):
+        text_len = len(text)
+        if text_len > MAX_CAPTCHA:
+            raise ValueError('验证码最长4个字符')
+
+        vector = np.zeros(MAX_CAPTCHA*CHAR_SET_LEN)
+    def char2pos(c):
+            if c =='_':
+                k = 62
+                return k
+            k = ord(c)-48
+            if k > 9:
+                k = ord(c) - 55
+                if k > 35:
+                    k = ord(c) - 61
+                    if k > 61:
+                        raise ValueError('No Map') 
+            return k
+        for i, c in enumerate(text):
+            idx = i * CHAR_SET_LEN + char2pos(c)
+            vector[idx] = 1
+        return vector
